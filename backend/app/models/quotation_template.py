@@ -43,6 +43,7 @@ class QuotationTemplate(Base):
     items: Mapped[List["QuotationTemplateItem"]] = relationship(
         "QuotationTemplateItem", back_populates="template", cascade="all, delete-orphan"
     )
+    plan: Mapped[Optional["Plan"]] = relationship("Plan", foreign_keys=[plan_id])
 
     __table_args__ = (
         CheckConstraint("validity_days > 0", name="ck_quotation_templates_validity_days"),

@@ -36,6 +36,10 @@ class SubscriptionItem(Base):
         "Subscription", back_populates="items"
     )
 
+    @property
+    def line_total(self) -> Decimal:
+        return Decimal(str(self.quantity)) * self.unit_price
+
     __table_args__ = (
         CheckConstraint("quantity > 0", name="ck_subscription_items_quantity_positive"),
         CheckConstraint("unit_price >= 0", name="ck_subscription_items_unit_price_positive"),
