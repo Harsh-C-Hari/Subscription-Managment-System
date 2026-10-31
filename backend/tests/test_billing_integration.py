@@ -548,3 +548,142 @@ def test_full_demo_flow(client: TestClient, admin_headers, staff_headers, custom
     dash_data = dash_res.json()
     assert Decimal(dash_data["total_revenue"]) >= Decimal("2000.00")
     assert dash_data["active_subscriptions"] >= 1
+
+
+def test_bulk_run_billing_and_idempotency(
+    client: TestClient, admin_headers, staff_headers, customer_a, db_session: Session
+):
+    prod = Product(name="Bulk Run SaaS", base_price=Decimal("150.00"), is_active=True)
+    db_session.add(prod)
+    db_session.commit()
+
+    plan = Plan(name="Bulk Plan", billing_period="monthly", price=Decimal("150.00"), product_id=prod.id, is_active=True)
+    db_session.add(plan)
+    db_session.commit()
+
+    # Create 2 subscriptions and activate them
+    s1 = client.post("/api/v1/subscriptions", headers=staff_headers, json={"customer_id": str(customer_a.id), "plan_id": str(plan.id)}).json()["id"]
+    s2 = client.post("/api/v1/subscriptions", headers=staff_headers, json={"customer_id": str(customer_a.id), "plan_id": str(plan.id)}).json()["id"]
+    client.post(f"/api/v1/subscriptions/{s1}/confirm", headers=staff_headers)
+    client.post(f"/api/v1/subscriptions/{s2}/confirm", headers=staff_headers)
+    today_str = date.today().isoformat()
+    client.post(f"/api/v1/subscriptions/{s1}/activate", headers=staff_headers, json={"start_date": today_str})
+    client.post(f"/api/v1/subscriptions/{s2}/activate", headers=staff_headers, json={"start_date": today_str})
+
+    # Bulk run
+    run_res = client.post("/api/v1/invoices/run-billing", headers=staff_headers, json={"as_of_date": today_str})
+    assert run_res.status_code == 200, run_res.text
+    run_data = run_res.json()
+    assert run_data["created"] >= 2
+    assert run_data["failed"] == 0
+
+    # Run again immediately -> should be skipped (idempotent)
+    run_again = client.post("/api/v1/invoices/run-billing", headers=staff_headers, json={"as_of_date": today_str})
+    assert run_again.status_code == 200
+    assert run_again.json()["created"] == 0
+
+
+def test_invoice_cancellation_and_filters(
+    client: TestClient, admin_headers, staff_headers, customer_a, customer_a_headers, db_session: Session
+):
+    prod = Product(name="Filter Item", base_price=Decimal("250.00"), is_active=True)
+    db_session.add(prod)
+    db_session.commit()
+
+    plan = Plan(name="Filter Plan", billing_period="monthly", price=Decimal("250.00"), product_id=prod.id, is_active=True)
+    db_session.add(plan)
+    db_session.commit()
+
+    sub_id = client.post("/api/v1/subscriptions", headers=staff_headers, json={"customer_id": str(customer_a.id), "plan_id": str(plan.id)}).json()["id"]
+    client.post(f"/api/v1/subscriptions/{sub_id}/confirm", headers=staff_headers)
+    client.post(f"/api/v1/subscriptions/{sub_id}/activate", headers=staff_headers, json={"start_date": date.today().isoformat()})
+
+    inv_id = client.post("/api/v1/invoices/generate", headers=staff_headers, json={"subscription_id": sub_id}).json()["id"]
+
+    # Confirm it
+    client.post(f"/api/v1/invoices/{inv_id}/confirm", headers=staff_headers)
+
+    # Cancel it (no payments yet) -> should succeed 200
+    cancel_res = client.post(f"/api/v1/invoices/{inv_id}/cancel", headers=staff_headers)
+    assert cancel_res.status_code == 200
+    assert cancel_res.json()["status"] == "cancelled"
+
+    # List with filter status=cancelled
+    list_res = client.get("/api/v1/invoices?status=cancelled", headers=staff_headers)
+    assert list_res.status_code == 200
+    assert any(inv["id"] == inv_id for inv in list_res.json()["items"])
+
+
+def test_subscription_template_copy(
+    client: TestClient, staff_headers, customer_a, db_session: Session
+):
+    prod1 = Product(name="Module A", base_price=Decimal("120.00"), is_active=True)
+    prod2 = Product(name="Module B", base_price=Decimal("80.00"), is_active=True)
+    db_session.add_all([prod1, prod2])
+    db_session.commit()
+
+    plan = Plan(name="Modular Plan", billing_period="monthly", price=Decimal("200.00"), product_id=prod1.id, is_active=True)
+    db_session.add(plan)
+    db_session.commit()
+
+    # Create quotation template with 2 items
+    tpl = client.post(
+        "/api/v1/quotation-templates",
+        headers=staff_headers,
+        json={
+            "name": "Modular Bundle",
+            "items": [
+                {"product_id": str(prod1.id), "quantity": 1, "unit_price": "120.00"},
+                {"product_id": str(prod2.id), "quantity": 2, "unit_price": "80.00"},
+            ],
+        },
+    ).json()
+
+    # Create subscription referencing template_id without items
+    sub = client.post(
+        "/api/v1/subscriptions",
+        headers=staff_headers,
+        json={
+            "customer_id": str(customer_a.id),
+            "plan_id": str(plan.id),
+            "template_id": tpl["id"],
+        },
+    ).json()
+
+    assert len(sub["items"]) == 2
+    descriptions = [it["description"] for it in sub["items"]]
+    assert "Module A" in descriptions
+    assert "Module B" in descriptions
+
+
+def test_duplicate_billing_409_integrity_error(
+    client: TestClient, staff_headers, customer_a, db_session: Session
+):
+    prod = Product(name="Dup Test", base_price=Decimal("100.00"), is_active=True)
+    db_session.add(prod)
+    db_session.commit()
+
+    plan = Plan(name="Dup Plan", billing_period="monthly", price=Decimal("100.00"), product_id=prod.id, is_active=True)
+    db_session.add(plan)
+    db_session.commit()
+
+    sub_id = client.post("/api/v1/subscriptions", headers=staff_headers, json={"customer_id": str(customer_a.id), "plan_id": str(plan.id)}).json()["id"]
+    client.post(f"/api/v1/subscriptions/{sub_id}/confirm", headers=staff_headers)
+    client.post(f"/api/v1/subscriptions/{sub_id}/activate", headers=staff_headers, json={"start_date": date.today().isoformat()})
+
+    # Generate first invoice
+    gen1 = client.post("/api/v1/invoices/generate", headers=staff_headers, json={"subscription_id": sub_id})
+    assert gen1.status_code == 201
+
+    # Reset subscription's next_billing_date back to period_start to simulate concurrent duplicate billing
+    from app.models.subscription import Subscription
+    sub = db_session.get(Subscription, sub_id)
+    sub.next_billing_date = gen1.json()["period_start"]
+    db_session.commit()
+
+    # Second generate must trigger 409 DUPLICATE_BILLING
+    gen2 = client.post("/api/v1/invoices/generate", headers=staff_headers, json={"subscription_id": sub_id})
+    assert gen2.status_code == 409
+    assert gen2.json()["error"]["code"] == "DUPLICATE_BILLING"
+
+
