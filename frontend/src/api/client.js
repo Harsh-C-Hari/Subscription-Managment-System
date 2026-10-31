@@ -169,6 +169,23 @@ async function handleMockRequest(config) {
     return { data: user, status: 200 };
   }
 
+  if (url === '/auth/staff' && method === 'POST') {
+    const newStaff = {
+      id: 'usr-staff-' + Math.random().toString(36).substring(2, 9),
+      email: data.email,
+      full_name: data.full_name || '',
+      phone: data.phone || '',
+      company_name: data.company_name || 'Brightloop Operations',
+      address: data.address || '',
+      role: 'staff',
+      is_active: true,
+      created_at: new Date().toISOString(),
+    };
+    state.users.push(newStaff);
+    saveMockState(state);
+    return { data: newStaff, status: 201 };
+  }
+
   if (url === '/auth/forgot-password' && method === 'POST') {
     return {
       data: {

@@ -61,6 +61,18 @@ export function CustomersPage() {
   });
   const [copied, setCopied] = useState(false);
 
+  // Staff creation modal (Admin only)
+  const [staffModalOpen, setStaffModalOpen] = useState(false);
+  const [staffFormSubmitting, setStaffFormSubmitting] = useState(false);
+  const [staffForm, setStaffForm] = useState({
+    email: '',
+    full_name: '',
+    password: '',
+    phone: '',
+    company_name: 'Brightloop Operations',
+    address: '',
+  });
+
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
     try {
@@ -169,6 +181,36 @@ export function CustomersPage() {
     setTimeout(() => setCopied(false), 2500);
   };
 
+  const handleOpenCreateStaff = () => {
+    setStaffForm({
+      email: '',
+      full_name: '',
+      password: '',
+      phone: '',
+      company_name: 'Brightloop Operations',
+      address: '',
+    });
+    setStaffModalOpen(true);
+  };
+
+  const handleSaveStaff = async (e) => {
+    e.preventDefault();
+    if (staffForm.password.length < 8) {
+      toast.error('Staff password must be at least 8 characters');
+      return;
+    }
+    setStaffFormSubmitting(true);
+    try {
+      await api.post('/auth/staff', staffForm);
+      toast.success(`Staff operator "${staffForm.full_name}" registered with role: staff`);
+      setStaffModalOpen(false);
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Failed to create staff account');
+    } finally {
+      setStaffFormSubmitting(false);
+    }
+  };
+
   const columns = [
     {
       key: 'full_name',
@@ -247,15 +289,27 @@ export function CustomersPage() {
         subtitle="Maintain account matrices, contact metadata, and provision operator access credentials."
         status="ACCOUNTS ACTIVE"
         actions={
-          <Button
-            variant="accent"
-            indicator="green"
-            onClick={handleOpenCreate}
-            className="text-xs font-bold"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            ENROLL NEW CUSTOMER
-          </Button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Button
+                variant="raised"
+                size="sm"
+                onClick={handleOpenCreateStaff}
+                className="text-xs font-semibold"
+              >
+                PROVISION STAFF OPERATOR
+              </Button>
+            )}
+            <Button
+              variant="accent"
+              indicator="green"
+              onClick={handleOpenCreate}
+              className="text-xs font-bold"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              ENROLL NEW CUSTOMER
+            </Button>
+          </div>
         }
       />
 
@@ -450,6 +504,95 @@ export function CustomersPage() {
             </Button>
           </div>
         </div>
+      </Modal>
+      {/* Staff Operator Provisioning Modal (Admin Only) */}
+      <Modal
+        isOpen={staffModalOpen}
+        onClose={() => setStaffModalOpen(false)}
+        title="Provision Staff Operator"
+        bayNumber="SECURITY BAY // STAFF PROVISIONING"
+        maxWidth="max-w-xl"
+      >
+        <form onSubmit={handleSaveStaff} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2">
+            <Input
+              label="STAFF OPERATOR FULL NAME *"
+              value={staffForm.full_name}
+              onChange={(e) => setStaffForm({ ...staffForm, full_name: e.target.value })}
+              placeholder="e.g. Lead Technician Sarah"
+              required
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <Input
+              label="STAFF EMAIL IDENTIFIER *"
+              type="email"
+              value={staffForm.email}
+              onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
+              placeholder="e.g. tech@brightloop.com"
+              icon={Mail}
+              required
+            />
+          </div>
+
+          <div>
+            <Input
+              label="INITIAL SECURITY KEY (MIN 8 CHARS) *"
+              type="password"
+              value={staffForm.password}
+              onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })}
+              placeholder="At least 8 characters"
+              icon={KeyRound}
+              required
+            />
+          </div>
+
+          <div>
+            <Input
+              label="ORGANIZATION / DIVISION"
+              value={staffForm.company_name}
+              onChange={(e) => setStaffForm({ ...staffForm, company_name: e.target.value })}
+              placeholder="e.g. Brightloop Operations"
+              icon={Building}
+            />
+          </div>
+
+          <div>
+            <Input
+              label="DIRECT CONTACT PHONE"
+              value={staffForm.phone}
+              onChange={(e) => setStaffForm({ ...staffForm, phone: e.target.value })}
+              placeholder="+1 800-555-0188"
+              icon={Phone}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <Input
+              label="OPERATING FACILITY / STATION"
+              value={staffForm.address}
+              onChange={(e) => setStaffForm({ ...staffForm, address: e.target.value })}
+              placeholder="e.g. Control Deck 2, Station 4"
+              icon={MapPin}
+            />
+          </div>
+
+          <div className="sm:col-span-2 flex items-center justify-end gap-2 pt-3 border-t border-[#b6bec2]">
+            <Button variant="raised" onClick={() => setStaffModalOpen(false)}>
+              CANCEL
+            </Button>
+            <Button
+              type="submit"
+              variant="accent"
+              indicator="green"
+              loading={staffFormSubmitting}
+            >
+              INITIALIZE STAFF CREDENTIALS
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );
