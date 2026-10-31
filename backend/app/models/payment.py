@@ -12,7 +12,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import DateTime
 from app.db.base import Base
 
@@ -48,6 +48,9 @@ class Payment(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+    invoice: Mapped["Invoice"] = relationship("Invoice", foreign_keys=[invoice_id], back_populates="payments")
+    customer: Mapped["User"] = relationship("User", foreign_keys=[customer_id])
 
     __table_args__ = (
         CheckConstraint("amount > 0", name="ck_payments_amount_positive"),

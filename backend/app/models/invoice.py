@@ -96,6 +96,23 @@ class Invoice(Base):
     items: Mapped[List["InvoiceItem"]] = relationship(
         "InvoiceItem", back_populates="invoice", cascade="all, delete-orphan"
     )
+    customer: Mapped["User"] = relationship("User", foreign_keys=[customer_id])
+    subscription: Mapped["Subscription"] = relationship("Subscription", foreign_keys=[subscription_id])
+    payments: Mapped[List["Payment"]] = relationship(
+        "Payment", foreign_keys="Payment.invoice_id", cascade="all, delete-orphan"
+    )
+
+    @property
+    def outstanding(self) -> Decimal:
+        return self.total - self.amount_paid
+
+    @property
+    def is_overdue(self) -> bool:
+        return self.due_date < date.today() and self.status in ("confirmed", "partially_paid")
+
+    @property
+    def subscription_number(self) -> Optional[str]:
+        return self.subscription.subscription_number if self.subscription else None
 
     __table_args__ = (
         CheckConstraint(

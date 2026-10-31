@@ -91,6 +91,11 @@ class Subscription(Base):
     items: Mapped[List["SubscriptionItem"]] = relationship(
         "SubscriptionItem", back_populates="subscription", cascade="all, delete-orphan"
     )
+    customer: Mapped["User"] = relationship("User", foreign_keys=[customer_id])
+    plan: Mapped["Plan"] = relationship("Plan", foreign_keys=[plan_id])
+    tax: Mapped[Optional["Tax"]] = relationship("Tax", foreign_keys=[tax_id])
+    discount: Mapped[Optional["Discount"]] = relationship("Discount", foreign_keys=[discount_id])
+    template: Mapped[Optional["QuotationTemplate"]] = relationship("QuotationTemplate", foreign_keys=[template_id])
 
     __table_args__ = (
         CheckConstraint(
