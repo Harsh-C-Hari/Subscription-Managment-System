@@ -1,0 +1,248 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --dp-color-chassis: #cbd0d2;
+  --dp-color-raised: #e7eaeb;
+  --dp-color-well: #b6bec2;
+  --dp-color-ink: #181e22;
+  --dp-color-label: #414b52;
+  --dp-color-field: #20272b;
+  --dp-color-on-field: #f2f4f4;
+  --dp-color-on-field-muted: #d8dee1;
+  --dp-color-accent: #f15b22;
+
+  --dp-typography-sans: "Industrial Host", "Host Grotesk", system-ui, sans-serif;
+  --dp-typography-mono: "Industrial Plex", "IBM Plex Mono", ui-monospace, monospace;
+  --dp-typography-body: 17px;
+  --dp-typography-reading: 16px;
+  --dp-typography-metadata: 13px;
+  --dp-typography-label: 11px;
+
+  --dp-spacing-column-gap: 25px;
+  --dp-spacing-compact-gap: 12px;
+
+  --dp-radius-key: 4px;
+  --dp-radius-circular: 50%;
+  --dp-border-hairline: 1px;
+
+  --dp-motion-navigation: 130ms;
+  --dp-motion-key: 140ms;
+  --dp-motion-dial: 150ms;
+  --dp-motion-settle: cubic-bezier(0.3, 0.7, 0.4, 1.25);
+}
+
+body {
+  margin: 0;
+  font-family: var(--dp-typography-sans);
+  font-size: var(--dp-typography-reading);
+  color: var(--dp-color-ink);
+  background-color: var(--dp-color-chassis);
+  min-height: 100vh;
+}
+
+/* Industrial chassis textures and details */
+.chassis-texture {
+  background-color: var(--dp-color-chassis);
+  background-image: 
+    radial-gradient(rgba(255, 255, 255, 0.35) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(0, 0, 0, 0.05) 100%);
+  background-size: 20px 20px, 100% 100%;
+}
+
+.engraved-label {
+  font-family: var(--dp-typography-mono);
+  font-size: var(--dp-typography-label);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dp-color-label);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.engraved-label-dark {
+  font-family: var(--dp-typography-mono);
+  font-size: var(--dp-typography-label);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dp-color-on-field-muted);
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.8);
+}
+
+/* Physical Depth: Raised Key */
+.key-raised {
+  background-color: var(--dp-color-raised);
+  border-radius: var(--dp-radius-key);
+  border: 1px solid #c2c9cc;
+  box-shadow: 
+    inset 0 1px 0 #ffffff,
+    inset 0 -1px 0 #9ca3af,
+    0 2px 4px rgba(0, 0, 0, 0.12);
+  transition: transform var(--dp-motion-key) var(--dp-motion-settle),
+              box-shadow var(--dp-motion-key) var(--dp-motion-settle),
+              background-color var(--dp-motion-key) ease;
+}
+
+.key-raised:hover {
+  box-shadow: 
+    inset 0 1px 0 #ffffff,
+    inset 0 -1px 0 #8f989c,
+    0 3px 6px rgba(0, 0, 0, 0.16);
+  transform: translateY(-1px);
+}
+
+.key-raised:active, .key-pressed {
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.22),
+    inset 0 1px 1px rgba(0, 0, 0, 0.15);
+  transform: translateY(1px);
+}
+
+/* Recessed Well */
+.panel-well {
+  background-color: var(--dp-color-well);
+  box-shadow: 
+    inset 0 2px 5px rgba(0, 0, 0, 0.18),
+    inset 0 1px 2px rgba(0, 0, 0, 0.12),
+    0 1px 0 rgba(255, 255, 255, 0.7);
+  border: 1px solid #9aa3a8;
+}
+
+/* Dark Screen Field */
+.panel-screen {
+  background-color: var(--dp-color-field);
+  color: var(--dp-color-on-field);
+  box-shadow: 
+    inset 0 3px 8px rgba(0, 0, 0, 0.55),
+    inset 0 1px 2px rgba(0, 0, 0, 0.35),
+    0 1px 0 rgba(255, 255, 255, 0.6);
+  border: 1px solid #161a1d;
+}
+
+/* Industrial Vents */
+.chassis-vent {
+  background: repeating-linear-gradient(
+    90deg,
+    #1d2427,
+    #1d2427 3px,
+    #3b4347 3px,
+    #3b4347 4px,
+    transparent 4px,
+    transparent 8px
+  );
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+}
+
+/* Screw / Rivet head */
+.screw-head {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffffff 0%, #b2bac0 45%, #7a848c 100%);
+  border: 1px solid #5d676e;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.8), 0 1px 2px rgba(0,0,0,0.3);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.screw-head::before {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 1.5px;
+  background-color: #384045;
+  box-shadow: 0 0.5px 0.5px rgba(255,255,255,0.4);
+}
+.screw-head::after {
+  content: '';
+  position: absolute;
+  height: 8px;
+  width: 1.5px;
+  background-color: #384045;
+  box-shadow: 0 0.5px 0.5px rgba(255,255,255,0.4);
+}
+
+/* LED Indicator Lamp */
+.led-lamp {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+  display: inline-block;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.6), 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.led-orange {
+  background-color: var(--dp-color-accent);
+  box-shadow: 0 0 6px rgba(241, 91, 34, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.7);
+}
+
+.led-green {
+  background-color: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.7);
+}
+
+.led-amber {
+  background-color: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.7);
+}
+
+.led-off {
+  background-color: #4b5563;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Dial Button */
+.action-dial {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffffff 0%, #d8dde0 40%, #aeb7bc 90%, #879298 100%);
+  border: 1px solid #7c878d;
+  box-shadow: 
+    0 3px 6px rgba(0, 0, 0, 0.22),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform var(--dp-motion-dial) var(--dp-motion-settle),
+              box-shadow var(--dp-motion-dial) var(--dp-motion-settle);
+}
+
+.action-dial:hover {
+  transform: translateY(-1px) rotate(10deg);
+  box-shadow: 
+    0 5px 10px rgba(0, 0, 0, 0.28),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.25);
+}
+
+.action-dial:active {
+  transform: translateY(1px) rotate(25deg);
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.3),
+    inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* Keyboard accessibility */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--dp-color-chassis), 0 0 0 4px var(--dp-color-accent) !important;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
