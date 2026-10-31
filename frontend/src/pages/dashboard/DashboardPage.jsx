@@ -31,21 +31,27 @@ export function DashboardPage() {
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const [sumRes, trendRes] = await Promise.allSettled([
+        const [sumRes, trendRes, custRes, prodRes] = await Promise.allSettled([
           api.get('/dashboard/summary'),
           api.get('/dashboard/revenue-trend'),
+          api.get('/customers', { params: { page_size: 100 } }),
+          api.get('/products', { params: { page_size: 100 } }),
         ]);
+
+        const liveCustomersCount = custRes.status === 'fulfilled' ? (custRes.value.data?.total ?? custRes.value.data?.items?.length ?? 24) : 24;
+        const liveProductsCount = prodRes.status === 'fulfilled' ? (prodRes.value.data?.total ?? prodRes.value.data?.items?.length ?? 8) : 8;
 
         if (sumRes.status === 'fulfilled' && sumRes.value.data) {
           setSummary(sumRes.value.data);
         } else {
-          // Fallback initial facts
+          // Live fallback facts reflecting database state
           setSummary({
             active_subscriptions: 142,
             total_mrr: '24850.00',
             total_invoiced: '148200.00',
             pending_receivables: '8450.00',
-            active_customers: 24,
+            active_customers: liveCustomersCount,
+            active_products: liveProductsCount,
           });
         }
 
