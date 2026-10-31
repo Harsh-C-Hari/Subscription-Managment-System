@@ -36,8 +36,21 @@ from app.services.money import quantize, ZERO
 
 
 def _next_inv_number(db: Session) -> str:
-    count = db.query(Invoice).count()
     year = date.today().year
+    prefix = f"INV-{year}-"
+    last_inv = (
+        db.query(Invoice.invoice_number)
+        .filter(Invoice.invoice_number.like(f"{prefix}%"))
+        .order_by(Invoice.invoice_number.desc())
+        .first()
+    )
+    if last_inv and last_inv[0]:
+        try:
+            num = int(last_inv[0].split("-")[-1])
+            return f"INV-{year}-{num + 1:06d}"
+        except Exception:
+            pass
+    count = db.query(Invoice).count()
     return f"INV-{year}-{count + 1:06d}"
 
 
@@ -55,7 +68,8 @@ def _try_claim_discount(db: Session, discount_id: uuid.UUID) -> bool:
         .values(used_count=Discount.used_count + 1)
         .returning(Discount.id)
     )
-    return result.rowcount > 0
+    return result.scalar_one_or_none() is not None
+
 
 
 def generate_invoice(
@@ -82,12 +96,29 @@ def generate_invoice(
         raise AppException(status_code=409, code="NOT_DUE",
                            message="Subscription is not due for billing yet")
 
-    plan = db.get(from_statement := None, sub.plan_id)  # noqa — see below
     from app.models.plan import Plan
-    plan = db.get(Plan, sub.plan_id)
+    plan = sub.plan or db.get(Plan, sub.plan_id)
 
     period_start = sub.next_billing_date
     period_end = compute_period_end(period_start, plan.billing_period, sub.billing_anchor_day)
+
+    # Check for existing non-cancelled invoice for this period
+    existing = (
+        db.query(Invoice)
+        .filter(
+            Invoice.subscription_id == sub.id,
+            Invoice.period_start == period_start,
+            Invoice.status != "cancelled",
+        )
+        .first()
+    )
+    if existing:
+        raise AppException(
+            status_code=409,
+            code="DUPLICATE_BILLING",
+            message="Invoice already exists for this period",
+        )
+
 
     # Calculate totals
     items_data = [{"quantity": it.quantity, "unit_price": it.unit_price} for it in sub.items]
@@ -194,10 +225,12 @@ def generate_invoice(
         db.commit()
     except IntegrityError as exc:
         db.rollback()
-        if "uq_invoice_sub_period" in str(exc.orig):
+        err_msg = str(getattr(exc, "orig", exc))
+        if "uq_invoice_sub_period" in err_msg or "unique" in err_msg.lower() or "duplicate" in err_msg.lower():
             raise AppException(status_code=409, code="DUPLICATE_BILLING",
                                message="Invoice already exists for this period")
         raise
+
 
     db.refresh(inv)
     return inv

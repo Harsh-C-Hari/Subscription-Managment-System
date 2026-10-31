@@ -25,9 +25,23 @@ from app.services.dates import advance_date, compute_end_date
 
 
 def _next_sub_number(db: Session) -> str:
-    count = db.query(Subscription).count()
     year = date.today().year
+    prefix = f"SUB-{year}-"
+    last_sub = (
+        db.query(Subscription.subscription_number)
+        .filter(Subscription.subscription_number.like(f"{prefix}%"))
+        .order_by(Subscription.subscription_number.desc())
+        .first()
+    )
+    if last_sub and last_sub[0]:
+        try:
+            num = int(last_sub[0].split("-")[-1])
+            return f"SUB-{year}-{num + 1:06d}"
+        except Exception:
+            pass
+    count = db.query(Subscription).count()
     return f"SUB-{year}-{count + 1:06d}"
+
 
 
 def _resolve_items(
