@@ -1,0 +1,4 @@
+# Person 2 extra dependencies (python-dateutil and pytest already in requirements.txt)
+# This file is additive — install both files: pip install -r requirements.txt -r requirements-billing.txt
+# Currently empty because all P2 deps are already covered by requirements.txt.
+# Add here if P2 needs additional packages (e.g. celery for future background billing).
