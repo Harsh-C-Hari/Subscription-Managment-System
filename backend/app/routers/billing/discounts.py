@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from sqlalchemy import desc, asc
 from app.core.deps import get_db, require_roles
 from app.models.discount import Discount
 from app.models.user import User
@@ -26,6 +27,7 @@ def list_discounts(
     search: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    sort: str = "-created_at",
     current_user: User = Depends(require_roles("admin", "staff")),
     db: Session = Depends(get_db),
 ):
@@ -35,6 +37,14 @@ def list_discounts(
     if search:
         like = f"%{search}%"
         q = q.filter(Discount.name.ilike(like) | Discount.code.ilike(like))
+
+    sort_field = sort.lstrip("-")
+    col = getattr(Discount, sort_field, Discount.created_at)
+    if sort.startswith("-"):
+        q = q.order_by(desc(col))
+    else:
+        q = q.order_by(asc(col))
+
     total = q.count()
     items = q.offset((page - 1) * page_size).limit(page_size).all()
     return paginate_list([DiscountOut.model_validate(d) for d in items], total, page, page_size)
@@ -73,11 +83,22 @@ def update_discount(
     db: Session = Depends(get_db),
 ):
     d = _get_or_404(db, discount_id)
-    for field, val in body.model_dump(exclude_unset=True).items():
+    updates = body.model_dump(exclude_unset=True)
+    if "code" in updates and updates["code"]:
+        new_code = updates["code"].upper()
+        if new_code != d.code:
+            existing = db.query(Discount).filter(Discount.code == new_code, Discount.id != discount_id).first()
+            if existing:
+                raise AppException(status_code=409, code="CONFLICT", message="Discount code already exists")
+            updates["code"] = new_code
+
+    for field, val in updates.items():
         setattr(d, field, val)
+
     db.commit()
     db.refresh(d)
     return DiscountOut.model_validate(d)
+
 
 
 @router.delete("/{discount_id}", status_code=status.HTTP_204_NO_CONTENT)
