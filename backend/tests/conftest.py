@@ -23,8 +23,20 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_db():
     # Ensure all tables exist in test database
+    for table in Base.metadata.tables.values():
+        seen = set()
+        to_remove = []
+        for idx in list(table.indexes):
+            if idx.name in seen:
+                to_remove.append(idx)
+            else:
+                seen.add(idx.name)
+        for idx in to_remove:
+            table.indexes.remove(idx)
+
     Base.metadata.create_all(bind=test_engine)
     yield
+
     # We can leave or drop, leaving is fine for local inspecting
 
 
